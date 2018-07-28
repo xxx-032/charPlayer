@@ -9,7 +9,8 @@
             
             运行时调整cmd窗口大小(右键cmd 字体大小选3*5 布局宽度368，高度200)
             
-            存在闪烁问题,待更新双缓冲区。
+            存在闪烁问题,待更新双缓冲区。(已解决,文中利用WriteConsoleOutputCharacterA解决了闪烁问题便没深入双缓冲区问题.)
+           
           
           
     运行截图：
@@ -17,3 +18,4 @@
           
           
     参考教程：http://tieba.baidu.com/p/2850192041
+    双缓冲区教程:https://blog.csdn.net/weixinhum/article/details/72179593
