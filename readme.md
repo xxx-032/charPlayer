@@ -7,6 +7,8 @@
     -r 指帧率 image2后面指截图生成路径.%4d为命名方式。
             ffmpeg –i 文件所在路径 –r 10 –f image2 C:/Users/Administrator/Desktop/backup/picture/%4d.jpeg 
             
+            运行时调整cmd窗口大小(右键cmd 字体大小选3*5 布局宽度368，高度200)
+            
             存在闪烁问题,待更新双缓冲区。
           
           
