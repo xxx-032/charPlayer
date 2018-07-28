@@ -11,7 +11,7 @@
           
           
     运行截图：
-           ![Image discription](https://github.com/xxx-032/charPlayer/blob/master/main/show.PNG）
+           ![Image text](https://github.com/xxx-032/charPlayer/blob/master/main/show.PNG)
           
           
     参考教程：http://tieba.baidu.com/p/2850192041
