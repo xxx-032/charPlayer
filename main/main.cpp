@@ -161,7 +161,8 @@ int main(void) {
 	printChar Charprint = (printChar)GetProcAddress(mydll, "PrintChar");
 	ClearScreen ScreenClean = (ClearScreen)GetProcAddress(mydll, "ClearScreen");
 
-	
+	//GetFile();       初次运行程序时请执行此句。
+
 	readTxt(f, Charprint, ScreenClean);
 
 	return 0;
