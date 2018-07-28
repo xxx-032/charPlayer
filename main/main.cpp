@@ -10,37 +10,39 @@
 #include<commdlg.h>
 #include<atlconv.h>
 using namespace std;
-typedef void(*printChar)(char *, UINT , UINT , UINT , UINT , UINT );
+typedef void(*printChar)(char *, UINT, UINT, UINT, UINT, UINT);
 typedef void(*ClearScreen)(UINT, UINT);
 #define MAXCOL 368
 #define MAXROW 280
+HANDLE hOutBuf;//控制台屏幕缓冲区句柄
+ULONG unuse;
 
 void getFiles(string path, vector<string>& files)
- {
-	     //文件句柄  
-		     long   hFile = 0;
-	    //文件信息  
-		     struct _finddata_t fileinfo;
-	     string p;
-	     if ((hFile = _findfirst(p.assign(path).append("\\*").c_str(), &fileinfo)) != -1)
-		     {
-		         do
-			         {
-			             //如果是目录,迭代之  
-				             //如果不是,加入列表  
-				             if ((fileinfo.attrib &  _A_SUBDIR))
-				             {
-				                if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
-					                     getFiles(p.assign(path).append("\\").append(fileinfo.name), files);
-				             }
-			             else
-				             {
-				                 files.push_back(p.assign(path).append("\\").append(fileinfo.name));
-				             }
-			         }while (_findnext(hFile, &fileinfo) == 0);
-			         _findclose(hFile);
-			     }
-	 }
+{
+	//文件句柄  
+	long   hFile = 0;
+	//文件信息  
+	struct _finddata_t fileinfo;
+	string p;
+	if ((hFile = _findfirst(p.assign(path).append("\\*").c_str(), &fileinfo)) != -1)
+	{
+		do
+		{
+			//如果是目录,迭代之  
+			//如果不是,加入列表  
+			if ((fileinfo.attrib &  _A_SUBDIR))
+			{
+				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
+					getFiles(p.assign(path).append("\\").append(fileinfo.name), files);
+			}
+			else
+			{
+				files.push_back(p.assign(path).append("\\").append(fileinfo.name));
+			}
+		} while (_findnext(hFile, &fileinfo) == 0);
+		_findclose(hFile);
+	}
+}
 
 
 void GetFile(void) {
@@ -89,7 +91,7 @@ void GetFile(void) {
 
 
 		//文件名，有需要可自己修改
-		_itoa(i + 1, backup,10);
+		_itoa(i + 1, backup, 10);
 		openFile = s + backup + ".txt";
 
 
@@ -97,7 +99,7 @@ void GetFile(void) {
 
 		for (y = 0; y < cy; y++) {
 			for (x = 0; x < cx; x++) {
-				
+
 				pixel = img.GetPixel(x, y);
 				grayVal = GetRValue(pixel) + GetGValue(pixel) + GetBValue(pixel) / 3;
 
@@ -126,7 +128,7 @@ void readTxt(string FILE, printChar Charprint, ClearScreen ScreenClean) {
 	char backup[5];
 	char buffer[MAXCOL + 1];
 	int length;
-	int y=0;
+	int y = 0;
 	getFiles(FILE.c_str(), files);
 	int size = files.size();
 	string s;
@@ -135,14 +137,16 @@ void readTxt(string FILE, printChar Charprint, ClearScreen ScreenClean) {
 		_itoa(i + 1, backup, 10);
 		openFile = FILE + backup + ".txt";
 		infile.open(openFile.c_str());
-		
+
 		y = 0;
-		
+
 		for (y = 0; y < MAXROW; y++) {
 			infile.read(buffer, MAXCOL + 1);
-			Charprint(buffer, MAXCOL, 0, y,MAXCOL,MAXROW);
+			//Charprint(buffer, MAXCOL, 0, y, MAXCOL, MAXROW);
+			WriteConsoleOutputCharacterA(hOutBuf, buffer, (UINT)MAXCOL, COORD{ (UINT)0,(SHORT)y }, &unuse);
 		}
-		Sleep(15);
+		SetConsoleActiveScreenBuffer(hOutBuf);
+		Sleep(10);
 		ScreenClean(MAXCOL, MAXROW);
 		infile.close();
 	}
@@ -155,18 +159,33 @@ void readTxt(string FILE, printChar Charprint, ClearScreen ScreenClean) {
 
 
 int main(void) {
-	system("mode con cols=368 lines=200");
-	string f = "C:/Users/Administrator/Desktop/backup/text/";
-	HINSTANCE mydll = LoadLibrary(L"Dll_charPrint.dll");
-	printChar Charprint = (printChar)GetProcAddress(mydll, "PrintChar");
-	ClearScreen ScreenClean = (ClearScreen)GetProcAddress(mydll, "ClearScreen");
+		system("mode con cols=368 lines=200");
+		string f = "C:/Users/Administrator/Desktop/backup/text/";
+		HINSTANCE mydll = LoadLibrary(L"Dll_charPrint.dll");
+		printChar Charprint = (printChar)GetProcAddress(mydll, "PrintChar");
+		ClearScreen ScreenClean = (ClearScreen)GetProcAddress(mydll, "ClearScreen");
 
-	//GetFile();       初次运行程序时请执行此句。
+		//GetFile();       初次运行程序时请执行此句。
+		//创建新的控制台缓冲区
+		hOutBuf = CreateConsoleScreenBuffer(
+			GENERIC_WRITE,//定义进程可以往缓冲区写数据
+			FILE_SHARE_WRITE,//定义缓冲区可共享写权限
+			NULL,
+			CONSOLE_TEXTMODE_BUFFER,
+			NULL
+		);
+		//隐藏两个缓冲区的光标
+		CONSOLE_CURSOR_INFO cci;
+		cci.bVisible = 0;
+		cci.dwSize = 1;
+		SetConsoleCursorInfo(hOutBuf, &cci);
 
-	readTxt(f, Charprint, ScreenClean);
 
-	return 0;
+		readTxt(f, Charprint, ScreenClean);
+
+		return 0;
 }
+
 
 
 
