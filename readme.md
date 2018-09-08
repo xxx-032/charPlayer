@@ -17,5 +17,8 @@
            ![Image text](https://raw.githubusercontent.com/xxx-032/charPlayer/master/main/show.PNG)
           
           
+          目标：声频图片实时转换做成播放器！赶紧的
+          
+          
     参考教程：http://tieba.baidu.com/p/2850192041
     双缓冲区教程:https://blog.csdn.net/weixinhum/article/details/72179593
