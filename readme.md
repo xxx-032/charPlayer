@@ -22,3 +22,11 @@
           
     参考教程：http://tieba.baidu.com/p/2850192041
     双缓冲区教程:https://blog.csdn.net/weixinhum/article/details/72179593
+    
+     ffmpeg -i .[迅雷下载xunbo.cc]爱情公寓第二季EP20.rmvb -f wav -ar 16000 2-20.wav
+       参数说明
+    -i .[迅雷下载xunbo.cc]爱情公寓第二季EP20.rmvb // 输入的文件路径
+    -f wav ///输出wav格式的文件
+     -ar 16000 //采样率为16K
+     2-20.wav // 输出的文件名
+  
