@@ -1,0 +1,295 @@
+#include<iostream>
+#include<fstream>
+#include<cstdlib>
+#include<string>
+#include<vector>
+#include<windows.h>
+#include<atlimage.h>
+#include<io.h>
+#include <conio.h>
+#include<commdlg.h>
+#include<atlconv.h>
+#include <mmsystem.h>
+
+#pragma comment(lib,"WinMM.Lib")
+
+using namespace std;
+
+
+//typedef void(*printChar)(char *, UINT, UINT, UINT, UINT, UINT);
+//typedef void(*ClearScreen)(UINT, UINT);
+#define MAXCOL 200
+#define MAXROW 200
+HANDLE hOutBuf;//控制台屏幕缓冲区句柄1
+HANDLE hOutBackup;//控制台屏幕缓冲区句柄2
+
+struct myLock {
+	CRITICAL_SECTION lock;
+	unsigned int current;
+}lockOfThreadhOutBuf, lockOfThreadhOutBackup;
+
+ULONG unuse = 0;
+vector<string>files;
+unsigned int FileSize = 0;
+unsigned int count = 140;
+
+
+char Abuffer[MAXCOL + 1];
+char Bbuffer[MAXCOL + 1];
+//DLL文件
+
+
+
+
+
+char *getFilePath(void) {
+	OPENFILENAME ofn;
+	char szFile[300];
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = NULL;
+	ofn.lpstrFile = (LPWSTR)szFile;
+	ofn.lpstrFile[0] = '\0';
+	ofn.nMaxFile = sizeof(szFile);
+	ofn.lpstrFilter = L"All\0*.*\0Text\0*.TXT\0";
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	if (GetOpenFileName(&ofn))
+	{
+		CString path(ofn.lpstrFile);
+		USES_CONVERSION;
+		return T2A(path);
+	}
+	else
+	{
+		return false;
+	}
+
+}
+
+
+void getFiles(string path, vector<string>& files)
+{
+	//文件句柄  
+	long   hFile = 0;
+	//文件信息  
+	struct _finddata_t fileinfo;
+	string p;
+	if ((hFile = _findfirst(p.assign(path).append("\\*").c_str(), &fileinfo)) != -1)
+	{
+		do
+		{
+			//如果是目录,迭代之  
+			//如果不是,加入列表  
+			if ((fileinfo.attrib &  _A_SUBDIR))
+			{
+				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
+					getFiles(p.assign(path).append("\\").append(fileinfo.name), files);
+			}
+			else
+			{
+				files.push_back(p.assign(path).append("\\").append(fileinfo.name));
+			}
+		} while (_findnext(hFile, &fileinfo) == 0);
+		_findclose(hFile);
+	}
+}
+
+
+
+void InitFiles(void){
+	getFiles("C:/Users/Administrator/Desktop/backup/picture", files);
+	FileSize = files.size();
+}
+
+
+
+
+DWORD WINAPI WriteABuffer(LPVOID lpParamter) {
+
+
+	while (::count < ::FileSize) {
+		EnterCriticalSection(&lockOfThreadhOutBuf.lock);
+
+
+		int cx, cy;
+		int x, y, grayVal;
+		CImage img;
+		CRect rect;
+		CString loadPicture;
+		COLORREF pixel;
+
+
+		lockOfThreadhOutBuf.current <= ::count ? lockOfThreadhOutBuf.current = ::count + 1 : lockOfThreadhOutBuf.current += 1;
+		loadPicture = files[lockOfThreadhOutBuf.current].c_str();
+		img.Load(loadPicture);
+
+		cx = img.GetWidth();
+		cy = img.GetHeight();
+
+
+		for (y = 0; y < cy; y++) {
+			for (x = 0; x < cx; x++) {
+
+				pixel = img.GetPixel(x, y);
+				grayVal = GetRValue(pixel) + GetGValue(pixel) + GetBValue(pixel) / 3;
+
+				if (grayVal < 120)
+				{
+					Abuffer[x] = ' ';
+				}
+				else
+				{
+					Abuffer[x] = 'M';
+				}
+			}
+			Abuffer[x] = '\0';
+			WriteConsoleOutputCharacterA(hOutBuf, Abuffer, (UINT)MAXCOL, COORD{ (UINT)0,(SHORT)y }, &unuse);
+		}
+		img.Destroy();
+		LeaveCriticalSection(&lockOfThreadhOutBuf.lock);
+	}
+}
+
+
+
+DWORD WINAPI WriteBBuffer(LPVOID lpParamter) {
+
+
+
+	while (::count < ::FileSize) {
+		EnterCriticalSection(&lockOfThreadhOutBackup.lock);
+
+		int cx, cy;
+		int x, y, grayVal;
+		CImage img;
+		CRect rect;
+		CString loadPicture;
+		COLORREF pixel;
+
+
+		lockOfThreadhOutBackup.current <= ::count ? lockOfThreadhOutBackup.current = ::count + 2 : lockOfThreadhOutBackup.current += 2;
+
+		loadPicture = files[lockOfThreadhOutBackup.current].c_str();
+		img.Load(loadPicture);
+
+		cx = img.GetWidth();
+		cy = img.GetHeight();
+
+
+
+
+		for (y = 0; y < cy; y++) {
+			for (x = 0; x < cx; x++) {
+
+				pixel = img.GetPixel(x, y);
+				grayVal = GetRValue(pixel) + GetGValue(pixel) + GetBValue(pixel) / 3;
+
+				if (grayVal < 120)
+				{
+					Bbuffer[x] = ' ';
+				}
+				else
+				{
+					Bbuffer[x] = 'M';
+				}
+			}
+			Bbuffer[x] = '\0';
+			WriteConsoleOutputCharacterA(hOutBackup, Bbuffer, (UINT)MAXCOL, COORD{ (UINT)0,(SHORT)y }, &unuse);
+		}
+		img.Destroy();
+		LeaveCriticalSection(&lockOfThreadhOutBackup.lock);
+	}
+}
+
+
+
+
+void readBuffer(void) {
+
+	HANDLE handle[2];
+
+	InitFiles();
+	InitializeCriticalSection(&lockOfThreadhOutBuf.lock);
+	InitializeCriticalSection(&lockOfThreadhOutBackup.lock);
+
+	handle[0] = CreateThread(NULL, 0, WriteABuffer, NULL, 0, NULL);
+	handle[1] = CreateThread(NULL, 0, WriteBBuffer, NULL, 0, NULL);
+
+
+
+	while (::count < ::FileSize) {
+		if (TryEnterCriticalSection(&lockOfThreadhOutBuf.lock) && (lockOfThreadhOutBuf.current <= lockOfThreadhOutBackup.current)) {
+			if (::count >= lockOfThreadhOutBuf.current)
+				LeaveCriticalSection(&lockOfThreadhOutBuf.lock);
+			else {
+				LeaveCriticalSection(&lockOfThreadhOutBuf.lock);
+				SetConsoleActiveScreenBuffer(hOutBuf);
+				::count = lockOfThreadhOutBuf.current;
+			}
+		}
+
+
+
+		if (TryEnterCriticalSection(&lockOfThreadhOutBackup.lock)) {
+			if (::count >= lockOfThreadhOutBackup.current)
+				LeaveCriticalSection(&lockOfThreadhOutBackup.lock);
+			else {
+				LeaveCriticalSection(&lockOfThreadhOutBackup.lock);
+				SetConsoleActiveScreenBuffer(hOutBackup);
+				::count = lockOfThreadhOutBackup.current;
+			}
+		}
+
+	}
+
+	CloseHandle(handle[0]);
+	CloseHandle(handle[1]);
+
+	DeleteCriticalSection(&lockOfThreadhOutBuf.lock);
+	DeleteCriticalSection(&lockOfThreadhOutBackup.lock);
+}
+
+
+
+
+
+
+
+int main(void) {
+	system("mode con cols=200 lines=200");
+	string f = "C:/Users/Administrator/Desktop/backup/text/";
+
+	hOutBuf = CreateConsoleScreenBuffer(
+		GENERIC_WRITE,//定义进程可以往缓冲区写数据
+		FILE_SHARE_WRITE,//定义缓冲区可共享写权限
+		NULL,
+		CONSOLE_TEXTMODE_BUFFER,
+		NULL
+	);
+	hOutBackup = CreateConsoleScreenBuffer(
+		GENERIC_WRITE,//定义进程可以往缓冲区写数据
+		FILE_SHARE_WRITE,//定义缓冲区可共享写权限
+		NULL,
+		CONSOLE_TEXTMODE_BUFFER,
+		NULL
+	);
+
+	//隐藏两个缓冲区的光标
+	CONSOLE_CURSOR_INFO cci;
+	cci.bVisible = 0;
+	cci.dwSize = 1;
+	SetConsoleCursorInfo(hOutBuf, &cci);
+	SetConsoleCursorInfo(hOutBackup, &cci);
+
+	readBuffer();
+	return 0;
+}
+
+
+
+
+

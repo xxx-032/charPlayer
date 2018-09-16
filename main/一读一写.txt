@@ -1,0 +1,291 @@
+#include<iostream>
+#include<fstream>
+#include<cstdlib>
+#include<string>
+#include<vector>
+#include<windows.h>
+#include<atlimage.h>
+#include<io.h>
+#include <conio.h>
+#include<commdlg.h>
+#include<atlconv.h>
+#include <mmsystem.h>
+
+#pragma comment(lib,"WinMM.Lib")
+
+using namespace std;
+
+
+//typedef void(*printChar)(char *, UINT, UINT, UINT, UINT, UINT);
+//typedef void(*ClearScreen)(UINT, UINT);
+#define MAXCOL 200
+#define MAXROW 200
+HANDLE hOutBuf;//控制台屏幕缓冲区句柄1
+HANDLE hOutBackup;//控制台屏幕缓冲区句柄2
+
+
+struct myLock {
+	CRITICAL_SECTION lock;
+	unsigned int current;
+}lockOfThreadhOutBuf, lockOfThreadhOutBackup;
+
+ULONG unuse = 0;
+vector<string>files;
+unsigned int FileSize = 0;
+unsigned int count = 140;
+
+
+char Abuffer[MAXCOL + 1];
+char Bbuffer[MAXCOL + 1];
+
+
+string SavePath = "C:/Users/Administrator/Desktop/backup/text/";
+//DLL文件
+
+
+
+
+
+char *getFilePath(void) {
+	OPENFILENAME ofn;
+	char szFile[300];
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = NULL;
+	ofn.lpstrFile = (LPWSTR)szFile;
+	ofn.lpstrFile[0] = '\0';
+	ofn.nMaxFile = sizeof(szFile);
+	ofn.lpstrFilter = L"All\0*.*\0Text\0*.TXT\0";
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	if (GetOpenFileName(&ofn))
+	{
+		CString path(ofn.lpstrFile);
+		USES_CONVERSION;
+		return T2A(path);
+	}
+	else
+	{
+		return false;
+	}
+
+}
+
+
+void getFiles(string path, vector<string>& files)
+{
+	//文件句柄  
+	long   hFile = 0;
+	//文件信息  
+	struct _finddata_t fileinfo;
+	string p;
+	if ((hFile = _findfirst(p.assign(path).append("\\*").c_str(), &fileinfo)) != -1)
+	{
+		do
+		{
+			//如果是目录,迭代之  
+			//如果不是,加入列表  
+			if ((fileinfo.attrib &  _A_SUBDIR))
+			{
+				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
+					getFiles(p.assign(path).append("\\").append(fileinfo.name), files);
+			}
+			else
+			{
+				files.push_back(p.assign(path).append("\\").append(fileinfo.name));
+			}
+		} while (_findnext(hFile, &fileinfo) == 0);
+		_findclose(hFile);
+	}
+}
+
+
+
+void InitFiles(void){
+	getFiles("C:/Users/Administrator/Desktop/backup/picture", files);
+	FileSize = files.size();
+}
+
+
+void PrintChar(char *ch, UINT count, UINT x, UINT y, UINT col, UINT row)  //在坐标(x,y)处输出字符串ch,ch里有count个字符
+{
+
+	HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+	COORD pos;
+	ULONG unuse;
+	pos.X = x;
+	pos.Y = y;
+	CONSOLE_SCREEN_BUFFER_INFO bInfo; // 窗口缓冲区信息
+
+	GetConsoleScreenBufferInfo(h, &bInfo);
+
+	WriteConsoleOutputCharacterA(h, ch, count, pos, &unuse);
+}
+
+
+void ClearScreen(UINT col, UINT row)
+{
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_SCREEN_BUFFER_INFO bInfo;
+
+	GetConsoleScreenBufferInfo(hOut, &bInfo);
+
+	COORD home = { 0,0 };
+
+	unsigned long size = col*row;
+
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), COORD{ 0,0 });
+	for (int i = 0; i < row; i++)
+		PrintChar("                                                                                                                                                                                                                                                                                                                                                                               ", col, 0, i, col, row);
+
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), COORD{ 0,0 });
+}
+
+
+
+
+
+DWORD WINAPI GetFile(LPVOID lpParamter) {
+	string openFile;
+	char backup[5];
+	int cx, cy;
+	int x, y, grayVal;
+	CImage img;
+	CRect rect;
+	ofstream outfile;
+	ifstream infile;
+	CString loadPicture;
+	COLORREF pixel;
+
+	
+	//由ffmpeg剪辑所得图片所在路径 本人设置的是路径+%4d.
+	getFiles("C:/Users/Administrator/Desktop/backup/picture", files);
+	for (int i = 0; i < FileSize; i++)
+	{
+
+		loadPicture = files[i].c_str();
+		img.Load(loadPicture);
+
+		cx = img.GetWidth();
+		cy = img.GetHeight();
+
+
+		//文件名，有需要可自己修改
+		_itoa(i + 1, backup, 10);
+		openFile = SavePath + backup + ".txt";
+
+
+		outfile.open(openFile.c_str(), ofstream::out);
+
+		for (y = 0; y < cy; y++) {
+			for (x = 0; x < cx; x++) {
+
+				pixel = img.GetPixel(x, y);
+				grayVal = GetRValue(pixel) + GetGValue(pixel) + GetBValue(pixel) / 3;
+
+				if (grayVal < 120)
+				{
+					outfile << " ";
+				}
+				else
+				{
+					outfile << "M";
+				}
+			}
+			outfile << "\n";
+		}
+		img.Destroy();
+		outfile.close();
+	}
+	return 0L;
+}
+
+
+
+
+
+void readTxt(void) {
+
+
+	InitFiles();
+
+	ifstream infile;
+	string openFile;
+	char backup[5];
+	char buffer[MAXCOL + 1];
+	int y = 0;
+	string s;
+	HANDLE handle = CreateThread(NULL, 0, GetFile, NULL, 0, NULL);
+
+	Sleep(10000);
+
+
+
+	for (int i = 0; i < FileSize; i++)
+	{
+		_itoa(i + 1, backup, 10);
+		openFile = SavePath + backup + ".txt";
+		infile.open(openFile.c_str());
+
+		y = 0;
+
+		for (y = 0; y < MAXROW; y++) {
+			infile.read(buffer, MAXCOL + 1);
+			WriteConsoleOutputCharacterA(hOutBuf, buffer, (UINT)MAXCOL, COORD{ (UINT)0,(SHORT)y }, &unuse);
+		}
+		infile.close();
+		SetConsoleActiveScreenBuffer(hOutBuf);
+		Sleep(100);
+		ClearScreen(MAXCOL, MAXROW);
+	}
+
+
+	
+
+	CloseHandle(handle);
+
+}
+
+
+
+
+
+
+
+
+int main(void) {
+	system("mode con cols=200 lines=200");
+	string f = "C:/Users/Administrator/Desktop/backup/text/";
+
+	hOutBuf = CreateConsoleScreenBuffer(
+		GENERIC_WRITE,//定义进程可以往缓冲区写数据
+		FILE_SHARE_WRITE,//定义缓冲区可共享写权限
+		NULL,
+		CONSOLE_TEXTMODE_BUFFER,
+		NULL
+	);
+	hOutBackup = CreateConsoleScreenBuffer(
+		GENERIC_WRITE,//定义进程可以往缓冲区写数据
+		FILE_SHARE_WRITE,//定义缓冲区可共享写权限
+		NULL,
+		CONSOLE_TEXTMODE_BUFFER,
+		NULL
+	);
+
+	//隐藏两个缓冲区的光标
+	CONSOLE_CURSOR_INFO cci;
+	cci.bVisible = 0;
+	cci.dwSize = 1;
+	SetConsoleCursorInfo(hOutBuf, &cci);
+	SetConsoleCursorInfo(hOutBackup, &cci);
+
+	readTxt();
+	return 0;
+}
+
+
+
+
